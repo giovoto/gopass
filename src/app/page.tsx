@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import * as XLSX from "xlsx";
-import { UploadCloud, File, AlertCircle, CheckCircle2 } from "lucide-react";
+import { UploadCloud, FileText, Settings, AlertCircle, CheckCircle2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function Home() {
@@ -11,8 +11,8 @@ export default function Home() {
 
   // Settings state
   const [fechaElaboracion, setFechaElaboracion] = useState("");
-  const [consecutivoInicial, setConsecutivoInicial] = useState<number>(1);
-  const [mismoConsecutivo, setMismoConsecutivo] = useState(false);
+  const [consecutivo, setConsecutivo] = useState<number>(1);
+  const [sameConsecutivo, setSameConsecutivo] = useState(false);
 
   // Status state
   const [isProcessing, setIsProcessing] = useState(false);
@@ -80,8 +80,8 @@ export default function Home() {
       formData.append("files", file);
     });
     formData.append("fecha", formattedFecha);
-    formData.append("consecutivo", consecutivoInicial.toString());
-    formData.append("sameConsecutivo", mismoConsecutivo.toString());
+    formData.append("consecutivo", consecutivo.toString());
+    formData.append("sameConsecutivo", sameConsecutivo.toString());
 
     try {
       const response = await fetch('/api/process', {
