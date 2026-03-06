@@ -1,9 +1,43 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import * as XLSX from "xlsx";
-import { UploadCloud, FileText, Settings, AlertCircle, CheckCircle2 } from "lucide-react";
+import { UploadCloud, FileText, Settings, AlertCircle, CheckCircle2, Car, X, Plus, Save } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+
+const CENTROS_DISPONIBLES = [
+  "014-10 FLORENCIA AZ",
+  "014-11 ADMINISTRACION AZ",
+  "014-2 IBAGUE AZ",
+  "014-3 SALDAÑA AZ",
+  "014-4 FLANDES AZ",
+  "014-5 ARMERO AZ",
+  "014-6 NEIVA AZ",
+  "014-7 GARZON 1 AZ",
+  "014-8 GARZON 2 AZ",
+  "014-9 MOCOA AZ",
+  "015-1 INSPIRINGPGD",
+  "015-2 MARIQUITA INS",
+  "015-3 FLANDES INS"
+];
+
+const DEFAULT_PLACAS: Record<string, string> = {
+  "DTW106": "014-10 FLORENCIA AZ",
+  "KRS521": "014-2 IBAGUE AZ",
+  "GBU033": "014-3 SALDAÑA AZ",
+  "ZZN059": "014-4 FLANDES AZ",
+  "ZYY099": "014-5 ARMERO AZ",
+  "LTP101": "014-6 NEIVA AZ",
+  "LPT101": "014-6 NEIVA AZ",
+  "LTP071": "014-7 GARZON 1 AZ",
+  "MSN700": "014-8 GARZON 2 AZ",
+  "COD289": "014-9 MOCOA AZ",
+  "NOK986": "015-1 INSPIRINGPGD",
+  "LUX980": "015-1 INSPIRINGPGD",
+  "NZL280": "015-1 INSPIRINGPGD",
+  "NPY085": "015-1 INSPIRINGPGD",
+  "NUX935": "015-1 INSPIRINGPGD"
+};
 
 export default function Home() {
   const [files, setFiles] = useState<File[]>([]);
@@ -12,7 +46,58 @@ export default function Home() {
   // Settings state
   const [fechaElaboracion, setFechaElaboracion] = useState("");
   const [consecutivo, setConsecutivo] = useState<number>(1);
-  const [sameConsecutivo, setSameConsecutivo] = useState(false);
+
+  // Placas config state
+  const [placasConfig, setPlacasConfig] = useState<Record<string, string>>(DEFAULT_PLACAS);
+  const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
+  const [placasInputs, setPlacasInputs] = useState<{ placa: string, centro: string }[]>([]);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('placasConfig_v2'); // new key to override old format
+    if (saved) {
+      try {
+        setPlacasConfig(JSON.parse(saved));
+      } catch (e) {
+        console.error("Failed to parse placasConfig_v2", e);
+      }
+    } else {
+      // Fallback or setup for first time
+      setPlacasConfig(DEFAULT_PLACAS);
+    }
+
+    const savedConsecutivo = localStorage.getItem('consecutivoInicial');
+    if (savedConsecutivo) {
+      setConsecutivo(parseInt(savedConsecutivo, 10) || 1);
+    }
+  }, []);
+
+  const handleConsecutivoChange = (val: number) => {
+    setConsecutivo(val);
+    localStorage.setItem('consecutivoInicial', val.toString());
+  };
+
+  const openConfig = () => {
+    const arr = Object.keys(placasConfig).map(k => ({
+      placa: k,
+      centro: placasConfig[k]
+    }));
+    if (arr.length === 0) arr.push({ placa: '', centro: '' });
+    setPlacasInputs(arr);
+    setIsConfigModalOpen(true);
+  };
+
+  const saveConfig = () => {
+    const newConfig: Record<string, string> = {};
+    placasInputs.forEach(item => {
+      const p = item.placa.trim().toUpperCase();
+      if (p) {
+        newConfig[p] = item.centro.trim();
+      }
+    });
+    setPlacasConfig(newConfig);
+    localStorage.setItem('placasConfig_v2', JSON.stringify(newConfig));
+    setIsConfigModalOpen(false);
+  };
 
   // Status state
   const [isProcessing, setIsProcessing] = useState(false);
@@ -81,7 +166,8 @@ export default function Home() {
     });
     formData.append("fecha", formattedFecha);
     formData.append("consecutivo", consecutivo.toString());
-    formData.append("sameConsecutivo", sameConsecutivo.toString());
+    formData.append("sameConsecutivo", "true");
+    formData.append("customPlacas", JSON.stringify(placasConfig));
 
     try {
       const response = await fetch('/api/process', {
@@ -190,27 +276,19 @@ export default function Home() {
                 <input
                   type="number"
                   value={consecutivo}
-                  onChange={(e) => setConsecutivo(parseInt(e.target.value) || 1)}
+                  onChange={(e) => handleConsecutivoChange(parseInt(e.target.value) || 1)}
                   className="w-full bg-slate-50 border border-slate-200/60 rounded-xl px-4 py-3 text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium"
                 />
               </div>
 
-              <div className="space-y-3 pt-2">
-                <label className="text-xs font-bold uppercase tracking-widest text-slate-400">Modo de Exportación</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => setSameConsecutivo(true)}
-                    className={`text-xs p-3 rounded-xl border transition-all font-bold ${sameConsecutivo ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-600/20' : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'}`}
-                  >
-                    Único
-                  </button>
-                  <button
-                    onClick={() => setSameConsecutivo(false)}
-                    className={`text-xs p-3 rounded-xl border transition-all font-bold ${!sameConsecutivo ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-600/20' : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'}`}
-                  >
-                    Incremental
-                  </button>
-                </div>
+              <div className="pt-2">
+                <button
+                  onClick={openConfig}
+                  className="w-full py-3 rounded-xl flex items-center justify-center gap-2 font-bold text-sm bg-slate-50 text-slate-600 border border-slate-200 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 transition-all"
+                >
+                  <Car className="w-4 h-4" />
+                  Configurar Placas y Centros
+                </button>
               </div>
             </div>
           </section>
@@ -360,6 +438,111 @@ export default function Home() {
         </AnimatePresence>
 
       </div>
+
+      {/* Config Modal */}
+      <AnimatePresence>
+        {isConfigModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden border border-slate-200"
+            >
+              <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                  <Car className="w-5 h-5 text-indigo-500" />
+                  Mapeo de Placas
+                </h3>
+                <button onClick={() => setIsConfigModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-2 rounded-full hover:bg-slate-100 transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
+                <div className="grid grid-cols-12 gap-4 px-2 text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">
+                  <div className="col-span-4">Placa</div>
+                  <div className="col-span-7">Centro de Costos Completo (Código y Nombre)</div>
+                  <div className="col-span-1 text-center">X</div>
+                </div>
+
+                {placasInputs.map((item, idx) => (
+                  <div key={idx} className="grid grid-cols-12 gap-4 items-center group">
+                    <div className="col-span-4">
+                      <input
+                        type="text"
+                        value={item.placa}
+                        onChange={(e) => {
+                          const newInputs = [...placasInputs];
+                          newInputs[idx].placa = e.target.value.toUpperCase();
+                          setPlacasInputs(newInputs);
+                        }}
+                        placeholder="ABC123"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 font-medium uppercase"
+                      />
+                    </div>
+                    <div className="col-span-7">
+                      <select
+                        value={item.centro}
+                        onChange={(e) => {
+                          const newInputs = [...placasInputs];
+                          newInputs[idx].centro = e.target.value;
+                          setPlacasInputs(newInputs);
+                        }}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 font-medium cursor-pointer"
+                      >
+                        <option value="">-- Seleccionar Centro --</option>
+                        {CENTROS_DISPONIBLES.map((centro) => (
+                          <option key={centro} value={centro}>{centro}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="col-span-1 flex justify-center">
+                      <button
+                        onClick={() => {
+                          const newInputs = [...placasInputs];
+                          newInputs.splice(idx, 1);
+                          setPlacasInputs(newInputs);
+                        }}
+                        className="text-slate-300 hover:text-red-500 p-2 rounded-lg hover:bg-red-50 transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+
+                <button
+                  onClick={() => setPlacasInputs([...placasInputs, { placa: '', centro: '' }])}
+                  className="w-full py-4 mt-4 border-2 border-dashed border-slate-200 rounded-xl text-slate-500 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50/50 transition-all flex items-center justify-center gap-2 font-semibold text-sm"
+                >
+                  <Plus className="w-4 h-4" /> Agregar Nueva Placa
+                </button>
+              </div>
+
+              <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
+                <button
+                  onClick={() => setIsConfigModalOpen(false)}
+                  className="px-6 py-2.5 rounded-xl font-bold text-slate-600 hover:bg-slate-200/50 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={saveConfig}
+                  className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-bold shadow-[0_8px_20px_rgba(99,102,241,0.2)] hover:shadow-[0_12px_25px_rgba(99,102,241,0.3)] hover:-translate-y-0.5 transition-all flex items-center gap-2"
+                >
+                  <Save className="w-4 h-4" /> Guardar Cambios
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </main>
   );
 }

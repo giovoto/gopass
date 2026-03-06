@@ -50,7 +50,24 @@ export async function POST(req: NextRequest) {
         const files = formData.getAll("files") as File[];
         const fechaElaboracion = formData.get("fecha") as string || "";
         let consecutivo = parseInt(formData.get("consecutivo") as string) || 1;
-        const sameConsecutivo = formData.get("sameConsecutivo") === "true"; // If true, all invoices get same consecutivo
+
+        const customPlacasStr = formData.get("customPlacas") as string;
+        let effectivePlacas: Record<string, string> = { ...PLACA_A_CENTRO };
+
+        if (customPlacasStr) {
+            try {
+                const parsed = JSON.parse(customPlacasStr);
+                for (const key in parsed) {
+                    if (parsed[key] && typeof parsed[key] === 'object' && parsed[key].centro) {
+                        effectivePlacas[key] = parsed[key].centro;
+                    } else if (typeof parsed[key] === 'string') {
+                        effectivePlacas[key] = parsed[key];
+                    }
+                }
+            } catch (e) {
+                console.error("Failed to parse customPlacas", e);
+            }
+        }
 
         if (!files || files.length === 0) {
             return NextResponse.json({ error: "No files uploaded" }, { status: 400 });
@@ -112,7 +129,7 @@ export async function POST(req: NextRequest) {
                     }
 
                     // Determinar Centro de Costos
-                    let centroCostos = PLACA_A_CENTRO[placa] || "";
+                    let centroCostos = effectivePlacas[placa] || "";
                     // El usuario pidió quitar espacios para que "015 - 1" sea "015-1"
                     centroCostos = centroCostos.replace(/\s+/g, "");
 
@@ -151,11 +168,6 @@ export async function POST(req: NextRequest) {
 
                     lastParams = sharedData;
                     grandTotal += total;
-
-                    // Incrementar consecutivo si es por factura
-                    if (!sameConsecutivo) {
-                        consecutivo += 1;
-                    }
 
                 } catch (err) {
                     console.error(`Error parsing PDF ${file.name}:`, err);
