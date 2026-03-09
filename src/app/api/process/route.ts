@@ -130,8 +130,15 @@ export async function POST(req: NextRequest) {
 
                     // Determinar Centro de Costos
                     let centroCostos = effectivePlacas[placa] || "";
-                    // El usuario pidió quitar espacios para que "015 - 1" sea "015-1"
-                    centroCostos = centroCostos.replace(/\s+/g, "");
+
+                    // Extraer solo la parte del código (números, guiones y espacios iniciales)
+                    // Para que "014-7 GARZON 1 AZ" pase a ser "014-7" y "014 - 10" pase a ser "014-10"
+                    const prefixMatch = centroCostos.match(/^[\d\s\-]+/);
+                    if (prefixMatch) {
+                        centroCostos = prefixMatch[0].replace(/\s+/g, "");
+                    } else {
+                        centroCostos = centroCostos.replace(/\s+/g, "");
+                    }
 
                     // Formatear Descripcion (DEFL 87755082 Placa: NUX935::Peaje: SAN PEDRO)
                     descripcion = `(${prefijo} ${folio} ${rawDesc})`;
