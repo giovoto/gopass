@@ -36,7 +36,9 @@ const DEFAULT_PLACAS: Record<string, string> = {
   "LUX980": "015-1 INSPIRINGPGD",
   "NZL280": "015-1 INSPIRINGPGD",
   "NPY085": "015-1 INSPIRINGPGD",
-  "NUX935": "015-1 INSPIRINGPGD"
+  "NUX935": "015-1 INSPIRINGPGD",
+  "NZL318": "014-10 FLORENCIA AZ",
+  "IGV419": "014-2 IBAGUE AZ"
 };
 
 export default function Home() {

@@ -102,37 +102,79 @@ export async function POST(req: NextRequest) {
                         folio = docMatch[2];
                     }
 
-                    // Extraer Descripcion y Placa
-                    const descMatch = text.match(/(Placa:\s*([A-Z0-9]+)::Peaje:\s*([^:\n]+))/i);
-                    let rawDesc = "";
+                    // Extraer Placa (Soporta "Placa: ABC123" y "placa: ABC123")
+                    const placaMatch = text.match(/placa:\s*([A-Z0-9]+)/i);
+                    if (placaMatch) {
+                        placa = placaMatch[1].replace(/[^A-Z0-9]/gi, "").toUpperCase();
+                    }
+
+                    // Extraer Descripcion / Peaje
+                    // Caso 1: Formato antiguo (Placa: XXX::Peaje: YYY)
+                    // Caso 2: Formato GoPass (SERVICIO PEAJE GUALANDAY ...)
+                    const descMatch = text.match(/(Placa:\s*[A-Z0-9]+::Peaje:\s*[^:\n]+)/i);
+                    const goPassMatch = text.match(/(SERVICIO PEAJE\s*[^\n]+)/i);
+                    
                     if (descMatch) {
-                        rawDesc = descMatch[1].trim(); // P.ej. "Placa: ZYY099::Peaje: PEAJE FLANDES"
-                        placa = descMatch[2].replace(/[^A-Z0-9]/gi, "").toUpperCase(); // Normalize placa
+                        descripcion = descMatch[1].trim();
+                    } else if (goPassMatch) {
+                        descripcion = goPassMatch[1].trim();
                     }
 
                     // Extraer valor Total
-                    // Often total is at the end or before "Pag. 1 de 1"
-                    const totalMatch = text.match(/Valor en letras[\s\S]*?(\d{1,3}(?:\.\d{3})*(?:,\d{2}))/i);
-                    let rawTotal = "";
-                    if (totalMatch) {
-                        rawTotal = totalMatch[1];
-                    } else {
-                        // Fallback to find large money amounts
-                        const moneyMatch = [...text.matchAll(/(\d{1,3}(?:\.\d{3})*(?:,\d{2}))/g)];
-                        if (moneyMatch.length > 0) {
-                            rawTotal = moneyMatch[moneyMatch.length - 1][1]; // take the last match typically
+                    // Buscar patrones como "VALOR TOTAL $ 15,300.00" o "Valor en letras... 15.300,00"
+                    const moneyRegex = /(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2}))/g;
+                    const moneyMatches = [...text.matchAll(moneyRegex)];
+                    
+                    if (moneyMatches.length > 0) {
+                        // Usualmente el total es el último valor grande encontrado antes de metadatos de página
+                        // O buscamos específicamente después de VALOR TOTAL
+                        const totalContextMatch = text.match(/VALOR TOTAL\s*\$?\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2}))/i);
+                        let rawTotal = "";
+                        
+                        if (totalContextMatch) {
+                            rawTotal = totalContextMatch[1];
+                        } else {
+                            rawTotal = moneyMatches[moneyMatches.length - 1][1];
                         }
-                    }
 
-                    if (rawTotal) {
-                        total = parseFloat(rawTotal.replace(/\./g, '').replace(',', '.'));
+                        // Normalizar: eliminar separadores de miles y asegurar punto decimal
+                        // Si tiene ambos . y ,, el último es el decimal
+                        // Si solo tiene uno, y son 2 dígitos después, es el decimal.
+                        let cleanTotal = rawTotal;
+                        const hasComma = cleanTotal.includes(',');
+                        const hasDot = cleanTotal.includes('.');
+
+                        if (hasComma && hasDot) {
+                            // Determinar cuál está al final
+                            if (cleanTotal.lastIndexOf(',') > cleanTotal.lastIndexOf('.')) {
+                                // Comma is decimal
+                                cleanTotal = cleanTotal.replace(/\./g, '').replace(',', '.');
+                            } else {
+                                // Dot is decimal
+                                cleanTotal = cleanTotal.replace(/,/g, '');
+                            }
+                        } else if (hasComma) {
+                            // Podría ser miles (15,000) o decimal (15,00)
+                            const parts = cleanTotal.split(',');
+                            if (parts[parts.length - 1].length === 2) {
+                                cleanTotal = cleanTotal.replace(',', '.');
+                            } else {
+                                cleanTotal = cleanTotal.replace(',', '');
+                            }
+                        } else if (hasDot) {
+                            const parts = cleanTotal.split('.');
+                            if (parts[parts.length - 1].length !== 2) {
+                                // Miles (15.000)
+                                cleanTotal = cleanTotal.replace(/\./g, '');
+                            }
+                        }
+                        total = parseFloat(cleanTotal);
                     }
 
                     // Determinar Centro de Costos
                     let centroCostos = effectivePlacas[placa] || "";
 
                     // Extraer solo la parte del código (números, guiones y espacios iniciales)
-                    // Para que "014-7 GARZON 1 AZ" pase a ser "014-7" y "014 - 10" pase a ser "014-10"
                     const prefixMatch = centroCostos.match(/^[\d\s\-]+/);
                     if (prefixMatch) {
                         centroCostos = prefixMatch[0].replace(/\s+/g, "");
@@ -140,8 +182,12 @@ export async function POST(req: NextRequest) {
                         centroCostos = centroCostos.replace(/\s+/g, "");
                     }
 
-                    // Formatear Descripcion (DEFL 87755082 Placa: NUX935::Peaje: SAN PEDRO)
-                    descripcion = `(${prefijo} ${folio} ${rawDesc})`;
+                    // Formatear Descripcion Final
+                    if (descripcion) {
+                        descripcion = `(${prefijo} ${folio} ${descripcion})`;
+                    } else {
+                        descripcion = `(${prefijo} ${folio} Placa: ${placa})`;
+                    }
 
                     // Reglas de Contabilidad
                     // Siempre cuenta 739566 (Debito) y 13300501 / 17059501 (Credito)
