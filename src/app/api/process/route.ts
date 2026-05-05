@@ -79,14 +79,30 @@ export async function POST(req: NextRequest) {
                         if (placaMatch) placa = placaMatch[1].replace(/[^A-Z0-9]/gi, "").toUpperCase();
 
                         // Normalización mejorada para GoPass
-                        const totalContextMatch = text.match(/VALOR TOTAL\s*\$?\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2}))/i);
+                        // Extracción de total mejorada (más flexible con la posición de "VALOR TOTAL")
+                        // Se añade (?!\d) para evitar capturar dígitos adicionales pegados al monto
+                        const totalRegex = /(?:VALOR TOTAL|TOTAL A PAGAR|TOTAL)[\s\S]{0,100}?\$\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)(?!\d)/i;
+                        const totalMatch = text.match(totalRegex);
                         let rawTotal = "";
-                        if (totalContextMatch) {
-                            rawTotal = totalContextMatch[1];
+
+                        if (totalMatch) {
+                            rawTotal = totalMatch[1];
                         } else {
-                            const moneyRegex = /(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2}))/g;
-                            const moneyMatches = [...text.matchAll(moneyRegex)];
-                            if (moneyMatches.length > 0) rawTotal = moneyMatches[moneyMatches.length - 1][1];
+                            // Fallback: buscar el último valor que parezca dinero y sea significativo (> 0)
+                            const moneyRegex = /\$\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)(?!\d)/g;
+                            const matches = [...text.matchAll(moneyRegex)];
+                            if (matches.length > 0) {
+                                // Intentar encontrar el último que no sea 0.00
+                                for (let i = matches.length - 1; i >= 0; i--) {
+                                    const val = matches[i][1].replace(/[.,]/g, '');
+                                    if (parseInt(val) > 0) {
+                                        rawTotal = matches[i][1];
+                                        break;
+                                    }
+                                }
+                                // Si todos son 0, tomar el último
+                                if (!rawTotal) rawTotal = matches[matches.length - 1][1];
+                            }
                         }
 
                         if (rawTotal) {
@@ -113,7 +129,8 @@ export async function POST(req: NextRequest) {
                                     cleanTotal = cleanTotal.replace(/\./g, '');
                                 }
                             }
-                            total = parseFloat(cleanTotal);
+                            // Redondear a entero para evitar decimales extraños (.001, etc)
+                            total = Math.round(parseFloat(cleanTotal));
                         }
                     }
 
@@ -143,7 +160,7 @@ export async function POST(req: NextRequest) {
                         "Consecutivo comprobante": consecutivo,
                         "Fecha de elaboraci\u00f3n ": fechaElaboracion,
                         "Sigla moneda": "COP",
-                        "Identificaci\u00f3n tercero": "900219834",
+                        "Identificaci\u00f3n tercero": "901294241",
                         "Sucursal": "",
                         "Prefijo": "", // Columna M
                         "Consecutivo": "", // Columna N

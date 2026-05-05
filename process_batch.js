@@ -13,7 +13,7 @@ const XLSX = require('xlsx');
 const CONFIG = {
     fechaElaboracion: "05/05/2026", // Ajustar según sea necesario
     consecutivoInicial: 1,
-    identificacionTercero: "900219834",
+    identificacionTercero: "901294241",
     cuentaDebito: "739566",
     cuentaCredito: "17059501",
     // Mapeo de Placas a Centros de Costos
@@ -99,15 +99,30 @@ async function run() {
                 descripcion = goPassMatch[1].trim();
             }
 
-            const totalContextMatch = text.match(/VALOR TOTAL\s*\$?\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2}))/i);
-            if (totalContextMatch) {
-                total = parseCurrency(totalContextMatch[1]);
+            // Extracción de total mejorada (con (?!\d) para evitar capturar dígitos adicionales)
+            const totalRegex = /(?:VALOR TOTAL|TOTAL A PAGAR|TOTAL)[\s\S]{0,100}?\$\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)(?!\d)/i;
+            const totalMatch = text.match(totalRegex);
+            let rawTotal = "";
+
+            if (totalMatch) {
+                rawTotal = totalMatch[1];
             } else {
-                const moneyRegex = /(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2}))/g;
-                const moneyMatches = [...text.matchAll(moneyRegex)];
-                if (moneyMatches.length > 0) {
-                    total = parseCurrency(moneyMatches[moneyMatches.length - 1][1]);
+                const moneyRegex = /\$\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)(?!\d)/g;
+                const matches = [...text.matchAll(moneyRegex)];
+                if (matches.length > 0) {
+                    for (let i = matches.length - 1; i >= 0; i--) {
+                        const val = matches[i][1].replace(/[.,]/g, '');
+                        if (parseInt(val) > 0) {
+                            rawTotal = matches[i][1];
+                            break;
+                        }
+                    }
+                    if (!rawTotal) rawTotal = matches[matches.length - 1][1];
                 }
+            }
+
+            if (rawTotal) {
+                total = Math.round(parseCurrency(rawTotal));
             }
 
             const centroCostos = CONFIG.placas[placa] || "";
