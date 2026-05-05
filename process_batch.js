@@ -18,9 +18,7 @@ const CONFIG = {
     cuentaCredito: "17059501",
     // Mapeo de Placas a Centros de Costos
     placas: {
-        "NZL318": "014-10",
-        "IGV419": "014-2",
-        // Agregar más mapeos de GoPass aquí
+        // "ABC123": "001",
     }
 };
 

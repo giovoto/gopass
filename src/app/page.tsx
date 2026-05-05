@@ -5,26 +5,12 @@ import * as XLSX from "xlsx";
 import { UploadCloud, FileText, Settings, AlertCircle, CheckCircle2, Car, X, Plus, Save } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-const CENTROS_DISPONIBLES = [
-  "014-10 FLORENCIA AZ",
-  "014-11 ADMINISTRACION AZ",
-  "014-2 IBAGUE AZ",
-  "014-3 SALDAÑA AZ",
-  "014-4 FLANDES AZ",
-  "014-5 ARMERO AZ",
-  "014-6 NEIVA AZ",
-  "014-7 GARZON 1 AZ",
-  "014-8 GARZON 2 AZ",
-  "014-9 MOCOA AZ",
-  "015-1 INSPIRINGPGD",
-  "015-2 MARIQUITA INS",
-  "015-3 FLANDES INS"
+const CENTROS_DISPONIBLES: string[] = [
+  // Agregar centros de costos aquí
 ];
 
 const DEFAULT_PLACAS: Record<string, string> = {
-  // Placas específicas para GoPass detectadas
-  "NZL318": "014-10 FLORENCIA AZ",
-  "IGV419": "014-2 IBAGUE AZ"
+  // Ejemplo: "ABC123": "001"
 };
 
 export default function Home() {

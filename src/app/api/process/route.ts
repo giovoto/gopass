@@ -3,45 +3,12 @@ import PDFParser from "pdf2json";
 
 // Mapeos de negocio (Placa -> Centro de costos)
 const CENTROS_COSTOS = {
-    // 014 AZTECA
-    "AZTECA": "014",
-    "FLORENCIA AZ": "014 - 10",
-    "ADMINISTRACION AZ": "014 - 11",
-    "IBAGUE AZ": "014 - 2",
-    "SALDAÑA AZ": "014 - 3",
-    "FLANDES AZ": "014 - 4",
-    "ARMERO AZ": "014 - 5",
-    "NEIVA AZ": "014 - 6",
-    "GARZON 1 AZ": "014 - 7",
-    "GARZON 2 AZ": "014 - 8",
-    "MOCOA AZ": "014 - 9",
-
-    // 015 INSPIRINGPGD
-    "INSPIRINGPGD": "015",
-    "MARIQUITA INS": "015 - 2",
-    "FLANDES INS": "015 - 3"
+    // Definir aquí los nuevos centros de costos cuando estén disponibles
 };
 
 // Mapeo directo de Placa -> Centro de costos específico
 const PLACA_A_CENTRO: Record<string, string> = {
-    // Vehiculos Azteca
-    "DTW106": "014 - 10", // FLORENCIA AZ
-    "KRS521": "014 - 2",  // IBAGUE AZ
-    "GBU033": "014 - 3",  // SALDAÑA AZ
-    "ZZN059": "014 - 4",  // FLANDES AZ
-    "ZYY099": "014 - 5",  // ARMERO AZ
-    "LTP101": "014 - 6",  // NEIVA AZ (OCR variant 1)
-    "LPT101": "014 - 6",  // NEIVA AZ (OCR variant 2, user mentioned both)
-    "LTP071": "014 - 7",  // GARZON 1 AZ
-    "MSN700": "014 - 8",  // GARZON 2 AZ
-    "COD289": "014 - 9",  // MOCOA AZ
-
-    // Vehiculos Inspiringpgd (015 - 1)
-    "NOK986": "015 - 1",
-    "LUX980": "015 - 1",
-    "NZL280": "015 - 1",
-    "NPY085": "015 - 1",
-    "NUX935": "015 - 1",
+    // Ejemplo: "ABC123": "001",
 };
 
 export async function POST(req: NextRequest) {
