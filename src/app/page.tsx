@@ -37,6 +37,7 @@ const DEFAULT_PLACAS: Record<string, string> = {
   "NZL280": "015-1 INSPIRINGPGD",
   "NPY085": "015-1 INSPIRINGPGD",
   "NUX935": "015-1 INSPIRINGPGD",
+  // Nuevas placas GoPass detectadas
   "NZL318": "014-10 FLORENCIA AZ",
   "IGV419": "014-2 IBAGUE AZ"
 };

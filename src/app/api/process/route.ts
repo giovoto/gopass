@@ -102,73 +102,78 @@ export async function POST(req: NextRequest) {
                         folio = docMatch[2];
                     }
 
-                    // Extraer Placa (Soporta "Placa: ABC123" y "placa: ABC123")
-                    const placaMatch = text.match(/placa:\s*([A-Z0-9]+)/i);
-                    if (placaMatch) {
-                        placa = placaMatch[1].replace(/[^A-Z0-9]/gi, "").toUpperCase();
+                    // Extraer Prefijo y Folio (Común para ambos)
+                    const docMatch = text.match(/([A-Z]{3,4})-(\d+)/);
+                    if (docMatch) {
+                        prefijo = docMatch[1];
+                        folio = docMatch[2];
                     }
 
-                    // Extraer Descripcion / Peaje
-                    // Caso 1: Formato antiguo (Placa: XXX::Peaje: YYY)
-                    // Caso 2: Formato GoPass (SERVICIO PEAJE GUALANDAY ...)
-                    const descMatch = text.match(/(Placa:\s*[A-Z0-9]+::Peaje:\s*[^:\n]+)/i);
-                    const goPassMatch = text.match(/(SERVICIO PEAJE\s*[^\n]+)/i);
-                    
-                    if (descMatch) {
-                        descripcion = descMatch[1].trim();
+                    // Identificar Formato: FLYPASS o GOPASS
+                    const flypassRegex = /(Placa:\s*([A-Z0-9]+)::Peaje:\s*([^:\n]+))/i;
+                    const goPassRegex = /(SERVICIO PEAJE\s*[^\n]+)/i;
+
+                    const flypassMatch = text.match(flypassRegex);
+                    const goPassMatch = text.match(goPassRegex);
+
+                    if (flypassMatch) {
+                        // --- LÓGICA FLYPASS (Original) ---
+                        descripcion = flypassMatch[1].trim();
+                        placa = flypassMatch[2].replace(/[^A-Z0-9]/gi, "").toUpperCase();
+
+                        const totalMatch = text.match(/Valor en letras[\s\S]*?(\d{1,3}(?:\.\d{3})*(?:,\d{2}))/i);
+                        if (totalMatch) {
+                            total = parseFloat(totalMatch[1].replace(/\./g, '').replace(',', '.'));
+                        } else {
+                            // Fallback de moneda original para Flypass
+                            const moneyMatch = [...text.matchAll(/(\d{1,3}(?:\.\d{3})*(?:,\d{2}))/g)];
+                            if (moneyMatch.length > 0) {
+                                total = parseFloat(moneyMatch[moneyMatch.length - 1][1].replace(/\./g, '').replace(',', '.'));
+                            }
+                        }
                     } else if (goPassMatch) {
+                        // --- LÓGICA GOPASS (Nueva) ---
                         descripcion = goPassMatch[1].trim();
-                    }
+                        const placaMatch = text.match(/placa:\s*([A-Z0-9]+)/i);
+                        if (placaMatch) placa = placaMatch[1].replace(/[^A-Z0-9]/gi, "").toUpperCase();
 
-                    // Extraer valor Total
-                    // Buscar patrones como "VALOR TOTAL $ 15,300.00" o "Valor en letras... 15.300,00"
-                    const moneyRegex = /(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2}))/g;
-                    const moneyMatches = [...text.matchAll(moneyRegex)];
-                    
-                    if (moneyMatches.length > 0) {
-                        // Usualmente el total es el último valor grande encontrado antes de metadatos de página
-                        // O buscamos específicamente después de VALOR TOTAL
+                        // Normalización mejorada para GoPass (que usa puntos para decimales en algunos casos)
                         const totalContextMatch = text.match(/VALOR TOTAL\s*\$?\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2}))/i);
                         let rawTotal = "";
-                        
                         if (totalContextMatch) {
                             rawTotal = totalContextMatch[1];
                         } else {
-                            rawTotal = moneyMatches[moneyMatches.length - 1][1];
+                            const moneyRegex = /(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2}))/g;
+                            const moneyMatches = [...text.matchAll(moneyRegex)];
+                            if (moneyMatches.length > 0) rawTotal = moneyMatches[moneyMatches.length - 1][1];
                         }
 
-                        // Normalizar: eliminar separadores de miles y asegurar punto decimal
-                        // Si tiene ambos . y ,, el último es el decimal
-                        // Si solo tiene uno, y son 2 dígitos después, es el decimal.
-                        let cleanTotal = rawTotal;
-                        const hasComma = cleanTotal.includes(',');
-                        const hasDot = cleanTotal.includes('.');
+                        if (rawTotal) {
+                            let cleanTotal = rawTotal;
+                            const hasComma = cleanTotal.includes(',');
+                            const hasDot = cleanTotal.includes('.');
 
-                        if (hasComma && hasDot) {
-                            // Determinar cuál está al final
-                            if (cleanTotal.lastIndexOf(',') > cleanTotal.lastIndexOf('.')) {
-                                // Comma is decimal
-                                cleanTotal = cleanTotal.replace(/\./g, '').replace(',', '.');
-                            } else {
-                                // Dot is decimal
-                                cleanTotal = cleanTotal.replace(/,/g, '');
+                            if (hasComma && hasDot) {
+                                if (cleanTotal.lastIndexOf(',') > cleanTotal.lastIndexOf('.')) {
+                                    cleanTotal = cleanTotal.replace(/\./g, '').replace(',', '.');
+                                } else {
+                                    cleanTotal = cleanTotal.replace(/,/g, '');
+                                }
+                            } else if (hasComma) {
+                                const parts = cleanTotal.split(',');
+                                if (parts[parts.length - 1].length === 2) {
+                                    cleanTotal = cleanTotal.replace(',', '.');
+                                } else {
+                                    cleanTotal = cleanTotal.replace(',', '');
+                                }
+                            } else if (hasDot) {
+                                const parts = cleanTotal.split('.');
+                                if (parts[parts.length - 1].length !== 2) {
+                                    cleanTotal = cleanTotal.replace(/\./g, '');
+                                }
                             }
-                        } else if (hasComma) {
-                            // Podría ser miles (15,000) o decimal (15,00)
-                            const parts = cleanTotal.split(',');
-                            if (parts[parts.length - 1].length === 2) {
-                                cleanTotal = cleanTotal.replace(',', '.');
-                            } else {
-                                cleanTotal = cleanTotal.replace(',', '');
-                            }
-                        } else if (hasDot) {
-                            const parts = cleanTotal.split('.');
-                            if (parts[parts.length - 1].length !== 2) {
-                                // Miles (15.000)
-                                cleanTotal = cleanTotal.replace(/\./g, '');
-                            }
+                            total = parseFloat(cleanTotal);
                         }
-                        total = parseFloat(cleanTotal);
                     }
 
                     // Determinar Centro de Costos
