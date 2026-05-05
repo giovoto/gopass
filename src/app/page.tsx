@@ -22,22 +22,7 @@ const CENTROS_DISPONIBLES = [
 ];
 
 const DEFAULT_PLACAS: Record<string, string> = {
-  "DTW106": "014-10 FLORENCIA AZ",
-  "KRS521": "014-2 IBAGUE AZ",
-  "GBU033": "014-3 SALDAÑA AZ",
-  "ZZN059": "014-4 FLANDES AZ",
-  "ZYY099": "014-5 ARMERO AZ",
-  "LTP101": "014-6 NEIVA AZ",
-  "LPT101": "014-6 NEIVA AZ",
-  "LTP071": "014-7 GARZON 1 AZ",
-  "MSN700": "014-8 GARZON 2 AZ",
-  "COD289": "014-9 MOCOA AZ",
-  "NOK986": "015-1 INSPIRINGPGD",
-  "LUX980": "015-1 INSPIRINGPGD",
-  "NZL280": "015-1 INSPIRINGPGD",
-  "NPY085": "015-1 INSPIRINGPGD",
-  "NUX935": "015-1 INSPIRINGPGD",
-  // Nuevas placas GoPass detectadas
+  // Placas específicas para GoPass detectadas
   "NZL318": "014-10 FLORENCIA AZ",
   "IGV419": "014-2 IBAGUE AZ"
 };
@@ -91,7 +76,7 @@ export default function Home() {
 
   const saveConfig = () => {
     const newConfig: Record<string, string> = {};
-    placasInputs.forEach(item => {
+    placasInputs.forEach((item: { placa: string, centro: string }) => {
       const p = item.placa.trim().toUpperCase();
       if (p) {
         newConfig[p] = item.centro.trim();
@@ -134,20 +119,20 @@ export default function Home() {
     e.preventDefault();
     setIsDragActive(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const droppedFiles = Array.from(e.dataTransfer.files).filter(f => f.type === "application/pdf");
-      setFiles(prev => [...prev, ...droppedFiles]);
+      const droppedFiles = Array.from(e.dataTransfer.files).filter((f: File) => f.type === "application/pdf");
+      setFiles((prev: File[]) => [...prev, ...droppedFiles]);
     }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      const selectedFiles = Array.from(e.target.files).filter(f => f.type === "application/pdf");
-      setFiles(prev => [...prev, ...selectedFiles]);
+      const selectedFiles = Array.from(e.target.files).filter((f: File) => f.type === "application/pdf");
+      setFiles((prev: File[]) => [...prev, ...selectedFiles]);
     }
   };
 
   const removeFile = (index: number) => {
-    setFiles(files.filter((_, i) => i !== index));
+    setFiles(files.filter((_, i: number) => i !== index));
   };
 
   const processFiles = async () => {
@@ -432,7 +417,7 @@ export default function Home() {
                 </h3>
               </div>
               <ul className="list-disc list-inside text-sm text-slate-300 space-y-1">
-                {errors.map((e, i) => (
+                {errors.map((e: any, i: number) => (
                   <li key={i}>{e.error}</li>
                 ))}
               </ul>

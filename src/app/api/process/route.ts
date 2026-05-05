@@ -102,42 +102,16 @@ export async function POST(req: NextRequest) {
                         folio = docMatch[2];
                     }
 
-                    // Extraer Prefijo y Folio (Común para ambos)
-                    const docMatch = text.match(/([A-Z]{3,4})-(\d+)/);
-                    if (docMatch) {
-                        prefijo = docMatch[1];
-                        folio = docMatch[2];
-                    }
-
-                    // Identificar Formato: FLYPASS o GOPASS
-                    const flypassRegex = /(Placa:\s*([A-Z0-9]+)::Peaje:\s*([^:\n]+))/i;
+                    // LÓGICA GOPASS (Versión dedicada)
                     const goPassRegex = /(SERVICIO PEAJE\s*[^\n]+)/i;
-
-                    const flypassMatch = text.match(flypassRegex);
                     const goPassMatch = text.match(goPassRegex);
 
-                    if (flypassMatch) {
-                        // --- LÓGICA FLYPASS (Original) ---
-                        descripcion = flypassMatch[1].trim();
-                        placa = flypassMatch[2].replace(/[^A-Z0-9]/gi, "").toUpperCase();
-
-                        const totalMatch = text.match(/Valor en letras[\s\S]*?(\d{1,3}(?:\.\d{3})*(?:,\d{2}))/i);
-                        if (totalMatch) {
-                            total = parseFloat(totalMatch[1].replace(/\./g, '').replace(',', '.'));
-                        } else {
-                            // Fallback de moneda original para Flypass
-                            const moneyMatch = [...text.matchAll(/(\d{1,3}(?:\.\d{3})*(?:,\d{2}))/g)];
-                            if (moneyMatch.length > 0) {
-                                total = parseFloat(moneyMatch[moneyMatch.length - 1][1].replace(/\./g, '').replace(',', '.'));
-                            }
-                        }
-                    } else if (goPassMatch) {
-                        // --- LÓGICA GOPASS (Nueva) ---
+                    if (goPassMatch) {
                         descripcion = goPassMatch[1].trim();
                         const placaMatch = text.match(/placa:\s*([A-Z0-9]+)/i);
                         if (placaMatch) placa = placaMatch[1].replace(/[^A-Z0-9]/gi, "").toUpperCase();
 
-                        // Normalización mejorada para GoPass (que usa puntos para decimales en algunos casos)
+                        // Normalización mejorada para GoPass
                         const totalContextMatch = text.match(/VALOR TOTAL\s*\$?\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2}))/i);
                         let rawTotal = "";
                         if (totalContextMatch) {
