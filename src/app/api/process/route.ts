@@ -61,6 +61,8 @@ export async function POST(req: NextRequest) {
                     let descripcion = "";
                     let placa = "";
                     let total = 0;
+                    let subtotal = 0;
+                    let iva = 0;
 
                     // Extraer Prefijo y Folio
                     const docMatch = text.match(/([A-Z]{3,4})-(\d+)/);
@@ -70,7 +72,7 @@ export async function POST(req: NextRequest) {
                     }
 
                     // LÓGICA GOPASS (Versión dedicada)
-                    const goPassRegex = /(SERVICIO PEAJE\s*[^\n]+)/i;
+                    const goPassRegex = /(SERVICIO (?:PEAJE|ESTACIONAMIENTO|PARQUEADERO)\s*[^\n]+)/i;
                     const goPassMatch = text.match(goPassRegex);
 
                     if (goPassMatch) {
@@ -132,6 +134,51 @@ export async function POST(req: NextRequest) {
                             // Redondear a entero para evitar decimales extraños (.001, etc)
                             total = Math.round(parseFloat(cleanTotal));
                         }
+
+                        // Extracción de IVA y Subtotal
+                        const allMoneyRegex = /\$\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)(?!\d)/g;
+                        const allMatches = [...text.matchAll(allMoneyRegex)];
+                        if (allMatches.length > 0 && total > 0) {
+                            const values = allMatches.map(m => {
+                                let clean = m[1];
+                                if (clean.includes(',') && clean.includes('.')) {
+                                    if (clean.lastIndexOf(',') > clean.lastIndexOf('.')) {
+                                        clean = clean.replace(/\./g, '').replace(',', '.');
+                                    } else {
+                                        clean = clean.replace(/,/g, '');
+                                    }
+                                } else if (clean.includes(',')) {
+                                    if (clean.split(',').pop()?.length === 2) clean = clean.replace(',', '.');
+                                    else clean = clean.replace(/,/g, '');
+                                } else if (clean.includes('.')) {
+                                    if (clean.split('.').pop()?.length !== 2) clean = clean.replace(/\./g, '');
+                                }
+                                return Math.round(parseFloat(clean));
+                            }).filter(v => v > 0);
+
+                            const uniqueValues = [...new Set(values)].sort((a, b) => b - a);
+                            let foundTotal = uniqueValues[0] || 0;
+                            let tempSubtotal = foundTotal;
+                            let tempIva = 0;
+                            for (let i = 1; i < uniqueValues.length; i++) {
+                                for (let j = i; j < uniqueValues.length; j++) {
+                                    if (uniqueValues[i] + uniqueValues[j] === foundTotal) {
+                                        tempSubtotal = uniqueValues[i] > uniqueValues[j] ? uniqueValues[i] : uniqueValues[j];
+                                        tempIva = uniqueValues[i] < uniqueValues[j] ? uniqueValues[i] : uniqueValues[j];
+                                        break;
+                                    }
+                                }
+                                if (tempIva > 0) break;
+                            }
+                            if (tempIva > 0 && foundTotal === total) {
+                                subtotal = tempSubtotal;
+                                iva = tempIva;
+                            } else {
+                                subtotal = total;
+                            }
+                        } else {
+                            subtotal = total;
+                        }
                     }
 
                     // Determinar Centro de Costos
@@ -150,6 +197,10 @@ export async function POST(req: NextRequest) {
                         descripcion = `(${prefijo} ${folio} ${descripcion})`;
                     } else {
                         descripcion = `(${prefijo} ${folio} Placa: ${placa})`;
+                    }
+                    
+                    if (descripcion.length > 100) {
+                        descripcion = descripcion.substring(0, 100);
                     }
 
                     // Reglas de Contabilidad
@@ -175,12 +226,27 @@ export async function POST(req: NextRequest) {
                     };
 
                     // Fila Débito
-                    results.push({
-                        ...sharedData,
-                        "C\u00f3digo cuenta contable": "739566",
-                        "D\u00e9bito": total,
-                        "Cr\u00e9dito": 0
-                    });
+                    if (iva > 0) {
+                        results.push({
+                            ...sharedData,
+                            "C\u00f3digo cuenta contable": "739566",
+                            "D\u00e9bito": subtotal,
+                            "Cr\u00e9dito": 0
+                        });
+                        results.push({
+                            ...sharedData,
+                            "C\u00f3digo cuenta contable": "513599",
+                            "D\u00e9bito": iva,
+                            "Cr\u00e9dito": 0
+                        });
+                    } else {
+                        results.push({
+                            ...sharedData,
+                            "C\u00f3digo cuenta contable": "739566",
+                            "D\u00e9bito": total,
+                            "Cr\u00e9dito": 0
+                        });
+                    }
 
                     lastParams = sharedData;
                     grandTotal += total;
