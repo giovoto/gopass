@@ -154,6 +154,11 @@ export default function Home() {
       if (data.success && data.records.length > 0) {
         setResults(data.records);
         generateExcel(data.records);
+        
+        // Incrementar consecutivo automáticamente
+        const nextConsecutivo = consecutivo + 1;
+        setConsecutivo(nextConsecutivo);
+        localStorage.setItem('consecutivoInicial', nextConsecutivo.toString());
       }
 
       if (data.errors && data.errors.length > 0) {
