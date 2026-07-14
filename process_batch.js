@@ -87,21 +87,24 @@ async function run() {
 
             let prefijo = "", folio = "", placa = "", total = 0, descripcion = "";
 
-            const docMatch = text.match(/([A-Z]{3,4})-(\d+)/);
+            const docMatch = text.match(/([A-Z]{3,4})\s*-\s*(\d+)/);
             if (docMatch) { prefijo = docMatch[1]; folio = docMatch[2]; }
 
-            const placaMatch = text.match(/placa:\s*([A-Z0-9]+)/i);
-            if (placaMatch) placa = placaMatch[1].replace(/[^A-Z0-9]/gi, "").toUpperCase();
+            const singleLineText = text.replace(/[\r\n]+/g, ' ');
 
-            const goPassMatch = text.match(/(SERVICIO PEAJE\s*[^\n]+)/i);
+            const goPassRegex = /(SERVICIO (?:PEAJE|ESTACIONAMIENTO|PARQUEADERO).*?)(?=\s+WSD|\s+CATEGORIA|$)/i;
+            const goPassMatch = singleLineText.match(goPassRegex);
             
             if (goPassMatch) {
                 descripcion = goPassMatch[1].trim();
             }
+            
+            const placaMatch = singleLineText.match(/pla\s*ca\s*:\s*([A-Z0-9]+)/i) || singleLineText.match(/placa:\s*([A-Z0-9]+)/i);
+            if (placaMatch) placa = placaMatch[1].replace(/[^A-Z0-9]/gi, "").toUpperCase();
 
             // Extracción de total mejorada (con (?!\d) para evitar capturar dígitos adicionales)
-            const totalRegex = /(?:VALOR TOTAL|TOTAL A PAGAR|TOTAL)[\s\S]{0,100}?\$\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)(?!\d)/i;
-            const totalMatch = text.match(totalRegex);
+            const totalRegex = /(?:VALOR TOTAL|TOTAL A PAGAR|TOTAL FACTURA(?:\s*\(\=\))?|TOTAL)[\s\S]{0,100}?(?:COP\s*)?\$\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)(?!\d)/i;
+            const totalMatch = text.match(totalRegex) || singleLineText.match(totalRegex);
             let rawTotal = "";
 
             if (totalMatch) {

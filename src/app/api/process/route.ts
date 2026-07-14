@@ -65,26 +65,28 @@ export async function POST(req: NextRequest) {
                     let iva = 0;
 
                     // Extraer Prefijo y Folio
-                    const docMatch = text.match(/([A-Z]{3,4})-(\d+)/);
+                    const docMatch = text.match(/([A-Z]{3,4})\s*-\s*(\d+)/);
                     if (docMatch) {
                         prefijo = docMatch[1];
                         folio = docMatch[2];
                     }
 
-                    // LÓGICA GOPASS (Versión dedicada)
-                    const goPassRegex = /(SERVICIO (?:PEAJE|ESTACIONAMIENTO|PARQUEADERO)\s*[^\n]+)/i;
-                    const goPassMatch = text.match(goPassRegex);
+                    const singleLineText = text.replace(/[\r\n]+/g, ' ');
+
+                    // LÓGICA GOPASS Y DIAN
+                    const goPassRegex = /(SERVICIO (?:PEAJE|ESTACIONAMIENTO|PARQUEADERO).*?)(?=\s+WSD|\s+CATEGORIA|$)/i;
+                    const goPassMatch = singleLineText.match(goPassRegex);
 
                     if (goPassMatch) {
                         descripcion = goPassMatch[1].trim();
-                        const placaMatch = text.match(/placa:\s*([A-Z0-9]+)/i);
+                        const placaMatch = singleLineText.match(/pla\s*ca\s*:\s*([A-Z0-9]+)/i) || singleLineText.match(/placa:\s*([A-Z0-9]+)/i);
                         if (placaMatch) placa = placaMatch[1].replace(/[^A-Z0-9]/gi, "").toUpperCase();
 
-                        // Normalización mejorada para GoPass
+                        // Normalización mejorada para GoPass y DIAN
                         // Extracción de total mejorada (más flexible con la posición de "VALOR TOTAL")
                         // Se añade (?!\d) para evitar capturar dígitos adicionales pegados al monto
-                        const totalRegex = /(?:VALOR TOTAL|TOTAL A PAGAR|TOTAL)[\s\S]{0,100}?\$\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)(?!\d)/i;
-                        const totalMatch = text.match(totalRegex);
+                        const totalRegex = /(?:VALOR TOTAL|TOTAL A PAGAR|TOTAL FACTURA(?:\s*\(\=\))?|TOTAL)[\s\S]{0,100}?(?:COP\s*)?\$\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)(?!\d)/i;
+                        const totalMatch = text.match(totalRegex) || singleLineText.match(totalRegex);
                         let rawTotal = "";
 
                         if (totalMatch) {
