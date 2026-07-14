@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import * as XLSX from "xlsx";
 import { UploadCloud, FileText, Settings, AlertCircle, CheckCircle2, Car, X, Plus, Save } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import CustomDatePicker from "../components/CustomDatePicker";
 
 const CENTROS_DISPONIBLES: string[] = [
   // Agregar centros de costos aquí
@@ -241,12 +242,10 @@ export default function Home() {
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-widest text-slate-400">Fecha Elaboración</label>
-                <input
-                  type="date"
+                <CustomDatePicker
+                  label="Fecha Elaboración"
                   value={fechaElaboracion}
-                  onChange={(e) => setFechaElaboracion(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200/60 rounded-xl px-4 py-3 text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium"
+                  onChange={setFechaElaboracion}
                 />
               </div>
 
